@@ -16,25 +16,62 @@ A private, user-authenticated journaling and multi-turn AI reflection sanctuary 
 
 ---
 
-## 🏗️ System Architecture & Data Flow
+## 🏗️ System Architecture & Dialogue Flow
+
+### 💬 Multi-Turn Dialogue Sequence Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 👤 User / Journaler
+    participant Client as 💻 React App Client
+    participant Auth as 🔐 Firebase Auth
+    participant DB as 💾 Cloud Firestore
+    participant Router as 🧠 Hybrid Gemini Router
+    participant Gemini as ✨ Gemini 3.6 Flash API
+
+    User->>Client: 1. Write Journal Entry & Select Mode (Reflection / Socratic / Brainstorm)
+    Client->>Auth: 2. Authenticate User (Google OAuth 2.0)
+    Auth-->>Client: 3. Return User Session (uid)
+    Client->>DB: 4. Auto-save Entry to /users/userId/entries
+    DB-->>Client: 5. Confirm Sync Status ("Firestore Synced")
+
+    User->>Client: 6. Send Reflection Question / Request Synthesis
+    Client->>Router: 7. Route Request with Persona Prompt & Context
+    alt Server Proxy Active
+        Router->>Express: 8a. Proxy request via Express Server (/api/gemini/reflect)
+        Express->>Gemini: 9a. Request Generation
+    else Direct Client Call / Static Hosting
+        Router->>Gemini: 8b. Direct SDK / REST API Call (gemini-3.6-flash)
+    else Offline / Local Fallback
+        Router->>Client: 8c. Return Built-in Local Reflection Partner
+    end
+
+    Gemini-->>Client: 10. Return Formatted AI Insights & Action Steps
+    Client-->>User: 11. Render Multi-Turn Markdown Dialogue & Gold Synthesis Card
+```
+
+### 🧩 Component Data Flow Diagram
 
 ```mermaid
 graph TD
-    User[User Browser Client] -->|Google OAuth 2.0| Auth[Firebase Authentication]
-    User -->|Debounced Auto-Save| DB[(Cloud Firestore /users/{userId}/entries)]
-    User -->|Fallback Offline Storage| Local[Browser LocalStorage]
+    User["👤 User Browser Client"] -->|1. Google OAuth 2.0| Auth["🔐 Firebase Auth"]
+    User -->|2. Debounced Auto-Save| DB[("💾 Cloud Firestore: /users/userId/entries")]
+    User -->|3. Local Storage Backup| Local["📦 Browser LocalStorage"]
     
-    User -->|AI Reflection Queries| API{Hybrid Gemini Router}
-    API -->|Local Express Backend| Express[Express + Vite Server]
-    API -->|Direct SDK / REST API| GeminiAPI[Google Gemini 3.6 Flash API]
-    API -->|Offline / Invalid Key Fallback| LocalPartner[Built-in Intelligent Reflection Engine]
+    User -->|4. Ask Reflection Question| Router{"🧠 Hybrid Gemini Router"}
+    Router -->|5a. Local Dev Server| Express["⚡ Express Backend Proxy"]
+    Router -->|5b. Live Cloud Hosting| Direct["✨ Direct Gemini API Client"]
+    Router -->|5c. Offline Fallback| LocalPartner["🌿 Built-in Reflection Partner"]
 
-    Express -->|Server-Side Key Proxy| GeminiAPI
+    Express -->|6. Server API Proxy| GeminiAPI["✨ Google Gemini 3.6 Flash API"]
+    Direct -->|6. REST / SDK Call| GeminiAPI
+    GeminiAPI -->|7. Return AI Insights| User
 ```
 
 ### Architecture Highlights:
 1. **Federated Google Identity**: Passwordless Google Sign-In with browser local session persistence.
-2. **Owner-Bound Cloud Firestore Isolation**: Data stored under `/users/{userId}/entries/...` with owner-only access rules.
+2. **Owner-Bound Cloud Firestore Isolation**: Data stored under `/users/userId/entries/...` with owner-only access rules.
 3. **Hybrid Gemini AI Router**: Automatically tries Express backend server proxy, falls back to direct client API (`gemini-3.6-flash` $\rightarrow$ `gemini-1.5-flash`), and degrades gracefully to an intelligent offline Local Reflection Partner.
 4. **Zero-Crash Payload Sanitization**: Strips `undefined` values recursively to prevent Firestore write crashes.
 
