@@ -30,43 +30,62 @@ sequenceDiagram
     participant Router as 🧠 Hybrid Gemini Router
     participant Gemini as ✨ Gemini 3.6 Flash API
 
-    User->>Client: 1. Write Journal Entry & Select Mode (Reflection / Socratic / Brainstorm)
-    Client->>Auth: 2. Authenticate User (Google OAuth 2.0)
-    Auth-->>Client: 3. Return User Session (uid)
-    Client->>DB: 4. Auto-save Entry to /users/userId/entries
-    DB-->>Client: 5. Confirm Sync Status ("Firestore Synced")
+    User->>Client: Write Journal Entry & Select Mode (Reflection / Socratic / Brainstorm)
+    Client->>Auth: Authenticate User (Google OAuth 2.0)
+    Auth-->>Client: Return User Session (uid)
+    Client->>DB: Auto-save Entry to Firestore (/users/uid/entries)
+    DB-->>Client: Confirm Sync Status ("Firestore Synced")
 
-    User->>Client: 6. Send Reflection Question / Request Synthesis
-    Client->>Router: 7. Route Request with Persona Prompt & Context
+    User->>Client: Send Reflection Question / Request Synthesis
+    Client->>Router: Route Request with Persona Prompt & Context
     alt Server Proxy Active
-        Router->>Express: 8a. Proxy request via Express Server (/api/gemini/reflect)
-        Express->>Gemini: 9a. Request Generation
+        Router->>Express: Proxy request via Express Server (/api/gemini/reflect)
+        Express->>Gemini: Request Generation
     else Direct Client Call / Static Hosting
-        Router->>Gemini: 8b. Direct SDK / REST API Call (gemini-3.6-flash)
+        Router->>Gemini: Direct SDK / REST API Call (gemini-3.6-flash)
     else Offline / Local Fallback
-        Router->>Client: 8c. Return Built-in Local Reflection Partner
+        Router->>Client: Return Built-in Local Reflection Partner
     end
 
-    Gemini-->>Client: 10. Return Formatted AI Insights & Action Steps
-    Client-->>User: 11. Render Multi-Turn Markdown Dialogue & Gold Synthesis Card
+    Gemini-->>Client: Return Formatted AI Insights & Action Steps
+    Client-->>User: Render Multi-Turn Markdown Dialogue & Gold Synthesis Card
 ```
 
-### 🧩 Component Data Flow Diagram
+### 🧩 System Data & Dialogue Flow Diagram
 
 ```mermaid
-graph TD
-    User["👤 User Browser Client"] -->|1. Google OAuth 2.0| Auth["🔐 Firebase Auth"]
-    User -->|2. Debounced Auto-Save| DB[("💾 Cloud Firestore: /users/userId/entries")]
-    User -->|3. Local Storage Backup| Local["📦 Browser LocalStorage"]
-    
-    User -->|4. Ask Reflection Question| Router{"🧠 Hybrid Gemini Router"}
-    Router -->|5a. Local Dev Server| Express["⚡ Express Backend Proxy"]
-    Router -->|5b. Live Cloud Hosting| Direct["✨ Direct Gemini API Client"]
-    Router -->|5c. Offline Fallback| LocalPartner["🌿 Built-in Reflection Partner"]
+flowchart TD
+    subgraph ClientLayer ["💻 Client & Session Layer"]
+        User["👤 User Browser Client"]
+        Auth["🔐 Firebase Auth (Google OAuth 2.0)"]
+        Local["📦 LocalStorage Backup"]
+    end
 
-    Express -->|6. Server API Proxy| GeminiAPI["✨ Google Gemini 3.6 Flash API"]
-    Direct -->|6. REST / SDK Call| GeminiAPI
-    GeminiAPI -->|7. Return AI Insights| User
+    subgraph StorageLayer ["💾 Persistence Layer"]
+        DB["💾 Cloud Firestore (/users/uid/entries)"]
+    end
+
+    subgraph AIRoutingLayer ["🧠 Gemini AI Engine"]
+        Router{"🧠 Hybrid Gemini Router"}
+        Express["⚡ Express Proxy (/api/gemini/reflect)"]
+        Direct["✨ Direct Client SDK (gemini-3.6-flash)"]
+        LocalPartner["🌿 Built-in Reflection Partner"]
+        GeminiAPI["✨ Google Gemini 3.6 Flash API"]
+    end
+
+    User -->|1. Authenticate| Auth
+    User -->|2. Debounced Auto-Save| DB
+    User -->|3. Offline Backup| Local
+    
+    User -->|4. Ask Reflection Question| Router
+    Router -->|5a. Dev Server Active| Express
+    Router -->|5b. Static Cloud Hosting| Direct
+    Router -->|5c. Offline Fallback| LocalPartner
+
+    Express -->|6. Server Proxy| GeminiAPI
+    Direct -->|6. Direct SDK Call| GeminiAPI
+    GeminiAPI -->|7. Multi-Turn AI Response| User
+    LocalPartner -->|7. Offline AI Insights| User
 ```
 
 ### Architecture Highlights:
