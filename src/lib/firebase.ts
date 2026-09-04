@@ -26,11 +26,8 @@ import {
 import firebaseConfigData from '../../firebase-applet-config.json';
 import { JournalEntry, UserProfile } from '../types';
 
-const defaultKey = 'AIzaSyAIeRxNrPVIrEc6x7CDsFOBFniwBSqY96A';
 const firebaseConfig = {
-  apiKey: (firebaseConfigData.apiKey && !firebaseConfigData.apiKey.includes('YOUR_')) 
-    ? firebaseConfigData.apiKey 
-    : defaultKey,
+  apiKey: (import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfigData.apiKey || '').trim(),
   authDomain: firebaseConfigData.authDomain,
   projectId: firebaseConfigData.projectId,
   storageBucket: firebaseConfigData.storageBucket,
